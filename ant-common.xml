@@ -352,4 +352,132 @@
 			</sequential>
 	   </sequential>
 	</macrodef>
+	
+	
+	<!-- ******************************************************************************** -->
+	<!-- * DEFAULT TARGETS (OVERRIDE IN MAIN IF NEED BE)									-->
+	<!-- ******************************************************************************** -->
+	
+	<target name="mkdirs-and-setup-props">
+		<set-default-props />
+		
+		<property name="jar.bin" value="${dir.build}/${artifactId}.jar" />
+		
+		<create-build-dirs />
+	</target>
+
+	<target name="clean-all"
+			description="cleanup all build artifacts"
+			depends="mkdirs-and-setup-props">
+		<clean-build-dirs />
+	</target>
+	
+	<!-- download dependencies with ivy -->
+	<target name="download-dependencies" 
+			depends="mkdirs-and-setup-props" 
+			description="use ivy to download dependencies">
+		
+		<fail message="not all parameters setup for downloading dependencies">
+			<condition>
+				<or>
+					<not><isset property="dir.buildlib" /></not>
+					<not><isset property="dir.library" /></not>
+					<not><isset property="classpath.name.bin" /></not>
+					<not><isset property="classpath.name.build" /></not>
+				</or>
+		 	</condition>
+		</fail>
+		
+		<ivy-download-deps/>
+		<classpath-from-dir dir="${dir.buildlib}" 
+				pathname="${classpath.name.build}" 
+				pathnamejar="${classpath.name.build}.jar"/>
+		<classpath-from-dir dir="${dir.library}" 
+				pathname="${classpath.name.bin}" 
+				pathnamejar="${classpath.name.bin}.jar"/>
+	</target>
+	
+	<!-- Internal Taskdefs -->
+	<target name="define-tasks-and-setup-paths" 
+			depends="download-dependencies">
+	</target>
+	
+	<!-- Compilation -->	
+	<target name="compile" 
+			depends="define-tasks-and-setup-paths"
+			description="compile Java sources">
+		
+		<fail message="not all parameters setup for compiling Java sources">
+			<condition>
+				<or>
+					<not><isset property="dir.bin" /></not>
+					<not><isset property="dir.source" /></not>
+					<not><isset property="classpath.name.bin" /></not>
+				</or>
+			</condition>
+		</fail>
+		
+		<javac srcdir="${dir.source}" destdir="${dir.bin}" 
+			classpathref="${classpath.name.bin}" debug="on" includeantruntime="false">
+			<compilerarg value="-Xlint:unchecked" />
+		</javac>
+	</target>
+	
+	<!-- generate java doc -->
+	<target name="java-doc" 
+		depends="define-tasks-and-setup-paths"
+		description="generate Javadocs">
+		
+		<fail message="not all parameters setup for building javadoc">
+			<condition>
+				<or>
+					<not><isset property="package" /></not>
+				</or>
+			</condition>
+		</fail>
+		
+		<create-javadoc package="${package}"/>
+	</target>
+	
+	<!-- create a jar file -->
+	<target name="jar" 
+		depends="compile"
+		description="generate jar file">
+
+		<fail message="not all parameters setup for building a jar">
+			<condition>
+				<or>
+					<not><isset property="jar.bin" /></not>
+					<not><isset property="dir.bin" /></not>
+					<not><isset property="mainClass" /></not>
+					<not><isset property="classpath.bin.jar" /></not>
+					<not><isset property="jar.creator" /></not>
+				</or>
+			</condition>
+		</fail>
+		
+		<!-- create jar file -->
+		<jar destfile="${jar.bin}" basedir="${dir.bin}">
+			<manifest>
+				<attribute name="Main-Class" value="${mainClass}" />
+				<attribute name="Created-By" value="${jar.creator}" />
+				<attribute name="Class-Path" value="${classpath.bin.jar}" />
+			</manifest>
+		</jar>
+		<copy file="${jar.bin}" tofile="${basedir}/toxgene.jar" overwrite="true"/>
+	</target>
+	
+	<!-- deploy to mvn central -->
+	<target name="deploy-snapshot" 
+			depends="jar,java-doc"
+			description="generate jars and pom.xml and deploy them as a snapshot to OSSRH">
+		<deploy-to-maven-central release="no"/>
+	</target>
+	
+	<target name="deploy-mvn-central" 
+			depends="jar,java-doc"
+			description="generate jars and pom.xml and deploy them to maven central via OSSRH">
+		<deploy-to-maven-central release="yes"/>
+	</target>
+	
 </project>
