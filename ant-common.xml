@@ -57,7 +57,7 @@
 	<macrodef name="ivy-download-deps"
 		description="download ivy and then download dependencies defined in ivy.xml">
 		
-		<attribute name="ivyjardir" default="${dir.build.library}"/>
+		<attribute name="ivyjardir" default="${dir.buildlib}"/>
 		<attribute name="ivyfile" default="${basedir}/ivy.xml" />
 		<attribute name="buildivyfile" default="${dir.buildresource}/ivy.xml" />
 		<attribute name="libsdir" default="${dir.library}" />
@@ -127,10 +127,10 @@
 	
 	<!-- create a class path from all jars in a dir -->
 	<macrodef name="classpath-from-dir">
-		<attribute name="dir" default="lib"/>
+		<attribute name="dir" default="${dir.library}"/>
 		<attribute name="pathname" default="${classpath.name.bin}" />
 		<attribute name="pathnamejar" default="${classpath.name.bin}.jar"/>
-		
+		<attribute name="jarcplibdir" default="lib" />
 		<sequential>
 			<echo message="**********************************************************"/>
 			<echo message="*  SETUP CLASS PATH @{pathname} for @{dir}"/>
@@ -149,7 +149,7 @@
 				<mapper>
 					<chainedmapper>
 						<flattenmapper/>
-						<globmapper from="*.jar" to="@{dir}/*.jar" casesensitive="no"/>
+						<globmapper from="*.jar" to="@{jarcplibdir}/*.jar" casesensitive="no"/>
 					</chainedmapper>
 				</mapper>
 			</pathconvert>
@@ -231,22 +231,8 @@
 			<echo message="*  CREATE POM @{pomfile}"/>
 			<echo message="**********************************************************"/>
 
-			<sequential if:set="mvn.build.release.jar">
-				<property name="mvn.full.version" value="${mvn.version}-RELEASE"/>
-				<property name="mvn.is.release" value="-RELEASE"/>
-			</sequential>
-			<sequential unless:set="mvn.build.release.jar">
-				<property name="mvn.full.version" value="${mvn.version}-SNAPSHOT"/>
-				<property name="mvn.is.release" value="-SNAPSHOT"/>
-			</sequential>
-			
-			<!-- make pom from ivy file -->
-			<ivy:makepom ivyfile="@{ivyfile}" pomfile="${pomfile}" templatefile="@{pomtemplate}" conf="default,runtime">
-			   <mapping conf="default" scope="compile"/>
-			   <mapping conf="runtime" scope="runtime"/>
-			</ivy:makepom>
 			<ivy:info file="@{ivyfile}" />
-
+			
 			<!-- determine group, artifact, version -->
 			<condition property="mvn.version" value="${ivy.revision}">
 				<equals arg1="@{version}" arg2="" trim="yes"/>
@@ -261,7 +247,22 @@
 				<not><equals arg1="@{artifactId}" arg2="" trim="yes"/></not>
 			</condition>
 			
-			<echo message="build ${mvn.artifactId} ${mvn.version}" />
+			<sequential if:set="mvn.build.release.jar">
+				<property name="mvn.full.version" value="${mvn.version}-RELEASE"/>
+				<property name="mvn.is.release" value="-RELEASE"/>
+			</sequential>
+			<sequential unless:set="mvn.build.release.jar">
+				<property name="mvn.full.version" value="${mvn.version}-SNAPSHOT"/>
+				<property name="mvn.is.release" value="-SNAPSHOT"/>
+			</sequential>
+			
+			<echo message="build ${mvn.artifactId} ${mvn.version} (${mvn.full.version})" />
+			
+			<!-- make pom from ivy file -->
+			<ivy:makepom ivyfile="@{ivyfile}" pomfile="${pomfile}" templatefile="@{pomtemplate}" conf="default,runtime">
+			   <mapping conf="default" scope="compile"/>
+			   <mapping conf="runtime" scope="runtime"/>
+			</ivy:makepom>
 			
 			<!-- create jar files -->
 			<echo message="**********************************************************"/>
