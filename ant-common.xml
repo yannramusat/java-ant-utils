@@ -323,7 +323,7 @@
 			      <arg value="-Durl=${ossrh-staging-repository-url}" />
 			      <arg value="-DrepositoryId=${ossrh-server-id}" />
 			      <arg value="-DpomFile=${pomfile}" />
-			      <arg value="-Dfile=${mvn.jar.source}" />
+			      <arg value="-Dfile=${mvn.jar.src}" />
 			      <arg value="-Dclassifier=sources" />
 			      <arg value="-Pgpg" />
 			    </artifact:mvn>
