@@ -15,6 +15,7 @@
 		<sequential>
 			<property name="dir.source" location="${basedir}/src" />
 			<property name="dir.bin" location="${basedir}/bin" />
+			<property name="dir.test.bin" location="${basedir}/testbin" />
 			<property name="dir.build" location="${basedir}/build" />
 			<property name="dir.javadoc" location="${basedir}/doc" />
 			<property name="dir.resource" location="${basedir}/resource" />
@@ -49,6 +50,9 @@
 			</delete>
 			<delete includeemptydirs="true">
 				<fileset dir="${dir.build}" includes="**/*"/>
+			</delete>
+			<delete includeemptydirs="true">
+				<fileset dir="${dir.test.bin}" includes="**/*"/>
 			</delete>
 		</sequential>
 	</macrodef>
