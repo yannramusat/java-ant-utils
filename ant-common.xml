@@ -206,6 +206,8 @@
 		<attribute name="artifactId" default=""/>
 		<attribute name="version" default=""/>
 		<attribute name="copyjar" default="${jar.bin}"/>
+		<attribute name="description" default="${mvn.description}" />
+		<attribute name="url" default="${mvn.url}" />
 		
 		<sequential>
 			<!-- properties local to macro -->
@@ -255,10 +257,20 @@
 				<property name="mvn.full.version" value="${mvn.version}-SNAPSHOT"/>
 				<property name="mvn.is.release" value="-SNAPSHOT"/>
 			</sequential>
-			
-			<echo message="build ${mvn.artifactId} ${mvn.version} (${mvn.full.version})" />
-			
+						
 			<!-- make pom from ivy file -->
+			<local name="ivy.pom.name" />
+			<local name="ivy.pom.description" />
+			<local name="ivy.pom.url" />
+			<property name="ivy.pom.name" value="${mvn.artifactId}" />
+			<property name="ivy.pom.description" value="@{description}" />
+			<property name="ivy.pom.url" value="@{url}" />
+			
+			<echo message="build ${mvn.artifactId} ${mvn.version} (${mvn.full.version}) - ${ivy.pom.name}
+				${ivy.pom.description}
+				${ivy.pom.url}
+				" />
+			
 			<ivy:makepom ivyfile="@{ivyfile}" pomfile="${pomfile}" templatefile="@{pomtemplate}" conf="default,runtime">
 			   <mapping conf="default" scope="compile"/>
 			   <mapping conf="runtime" scope="runtime"/>
