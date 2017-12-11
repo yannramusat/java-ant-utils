@@ -11,7 +11,6 @@
 	<!-- set default directory properties -->
 	<macrodef name="set-default-props"
 			description="set default directory properties">
-		
 		<sequential>
 			<property name="dir.source" location="${basedir}/src" />
 			<property name="dir.bin" location="${basedir}/bin" />
@@ -31,12 +30,20 @@
 	<macrodef name="create-build-dirs"
 			description="create standard build directories">
 		
+		<attribute name="dir.bin" default="${dir.bin}" />
+		<attribute name="dir.build" default="${dir.build}" />
+		<attribute name="dir.buildlib" default="${dir.buildlib}" />
+		<attribute name="dir.mvn" default="${dir.mvn}" />
+		<attribute name="dir.mvnlib" default="${dir.mvnlib}" />
+		<attribute name="dir.deploy" default="${dir.deploy}" />
+		
 		<sequential>
-			<mkdir dir="${dir.bin}" />
-			<mkdir dir="${dir.build}" />
-			<mkdir dir="${dir.buildlib}" />
-			<mkdir dir="${dir.mvn}"/>
-			<mkdir dir="${dir.mvnlib}"/>
+			<mkdir dir="@{dir.bin}" />
+			<mkdir dir="@{dir.build}" />
+			<mkdir dir="@{dir.buildlib}" />
+			<mkdir dir="@{dir.mvn}"/>
+			<mkdir dir="@{dir.mvnlib}"/>
+			<mkdir dir="@{dir.deploy}" />
 		</sequential>
 	</macrodef>
 	
@@ -44,15 +51,46 @@
 	<macrodef name="clean-build-dirs"
 		description="clean all build directories">
 		
+		<attribute name="dir.bin" default="${dir.bin}" />
+		<attribute name="dir.build" default="${dir.build}" />
+		<attribute name="dir.buildlib" default="${dir.buildlib}" />
+		<attribute name="dir.mvn" default="${dir.mvn}" />
+		<attribute name="dir.mvnlib" default="${dir.mvnlib}" />
+		<attribute name="dir.deploy" default="${dir.deploy}" />
+		<attribute name="dir.test.bin" default="${dir.test.bin}" />
+		
 		<sequential>
+			<echo message="**********************************************************"/>
+			<echo message="*  CLEAN ALL "/>
+			<echo message="**********************************************************"/>
+			<echo message="dir.bin = '@{dir.bin}'" />
+			<echo message="dir.build = '@{dir.build}'" />
+			<echo message="dir.buildlib = '@{dir.buildlib}'" />
+			<echo message="dir.mvn = '@{dir.mvn}'" />
+			<echo message="dir.mvnlib = '@{dir.mvnlib}'" />
+			<echo message="dir.deploy = '@{dir.deploy}'" />
+			<echo message="dir.test.bin = '@{dir.test.bin}'" />
+			
 			<delete includeemptydirs="true">
-				<fileset dir="${dir.bin}" includes="**/*"/>
+				<fileset dir="@{dir.bin}" includes="**/*"/>
 			</delete>
 			<delete includeemptydirs="true">
-				<fileset dir="${dir.build}" includes="**/*"/>
+				<fileset dir="@{dir.build}" includes="**/*"/>
 			</delete>
 			<delete includeemptydirs="true">
-				<fileset dir="${dir.test.bin}" includes="**/*"/>
+				<fileset dir="@{dir.build.lib}" includes="**/*"/>
+			</delete>
+			<delete includeemptydirs="true">
+				<fileset dir="@{dir.mvn}" includes="**/*"/>
+			</delete>
+			<delete includeemptydirs="true">
+				<fileset dir="@{dir.mvnlib}" includes="**/*"/>
+			</delete>
+			<delete includeemptydirs="true">
+				<fileset dir="@{dir.deploy}" includes="**/*"/>
+			</delete>
+			<delete includeemptydirs="true">
+				<fileset dir="@{dir.test.bin}" includes="**/*"/>
 			</delete>
 		</sequential>
 	</macrodef>
