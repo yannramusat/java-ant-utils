@@ -292,8 +292,11 @@
 			<echo message="**********************************************************"/>
 			<!-- define maven task -->
 			<typedef resource="org/apache/maven/artifact/ant/antlib.xml" 
-				uri="antlib:org.apache.maven.artifact.ant" classpathref="@{classpath}">
+				uri="antlib:org.apache.maven.artifact.ant" 
+				classpathref="@{classpath}"
+				unless:set="mvn.ant.initialized">
 			</typedef>
+			<property name="mvn.ant.initialized" value="true"/>
 			
 			<!-- defined maven snapshots and staging repository id and url -->
 			<property name="ossrh-snapshots-repository-url" 
