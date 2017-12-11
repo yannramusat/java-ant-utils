@@ -254,8 +254,12 @@
 			</condition>
 			
 			<sequential if:set="mvn.build.release.jar">
+				<!--
 				<property name="mvn.full.version" value="${mvn.version}-RELEASE"/>
 				<property name="mvn.is.release" value="-RELEASE"/>
+				-->
+				<property name="mvn.full.version" value="${mvn.version}"/>
+				<property name="mvn.is.release" value=""/>
 			</sequential>
 			<sequential unless:set="mvn.build.release.jar">
 				<property name="mvn.full.version" value="${mvn.version}-SNAPSHOT"/>
