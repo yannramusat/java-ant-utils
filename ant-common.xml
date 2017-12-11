@@ -46,7 +46,7 @@
 			<mkdir dir="@{dir.deploy}" />
 		</sequential>
 	</macrodef>
-	
+		
 	<!-- create basic build dirs -->
 	<macrodef name="clean-build-dirs"
 		description="clean all build directories">
@@ -71,30 +71,40 @@
 			<echo message="dir.deploy = '@{dir.deploy}'" />
 			<echo message="dir.test.bin = '@{dir.test.bin}'" />
 			
-			<delete includeemptydirs="true">
-				<fileset dir="@{dir.bin}" includes="**/*"/>
-			</delete>
-			<delete includeemptydirs="true">
-				<fileset dir="@{dir.build}" includes="**/*"/>
-			</delete>
-			<delete includeemptydirs="true">
-				<fileset dir="@{dir.build.lib}" includes="**/*"/>
-			</delete>
-			<delete includeemptydirs="true">
-				<fileset dir="@{dir.mvn}" includes="**/*"/>
-			</delete>
-			<delete includeemptydirs="true">
-				<fileset dir="@{dir.mvnlib}" includes="**/*"/>
-			</delete>
-			<delete includeemptydirs="true">
-				<fileset dir="@{dir.deploy}" includes="**/*"/>
-			</delete>
-			<delete includeemptydirs="true">
-				<fileset dir="@{dir.test.bin}" includes="**/*"/>
-			</delete>
+			<clean-dir-if-exists dir="@{dir.bin}"/>
+			<clean-dir-if-exists dir="@{dir.build}"/>
+			<clean-dir-if-exists dir="@{dir.buildlib}"/>
+			<clean-dir-if-exists dir="@{dir.mvn}"/>
+			<clean-dir-if-exists dir="@{dir.mvnlib}"/>
+			<clean-dir-if-exists dir="@{dir.deploy}"/>
+			<clean-dir-if-exists dir="@{dir.test.bin}"/>
 		</sequential>
 	</macrodef>
-
+	
+	<!-- cleans the contents of one directory if it exists -->
+	<macrodef name="clean-dir-if-exists"
+			description="delete the contents of directory if it exists">
+		<attribute name="dir"/>
+		<sequential>
+			<local name="dir.exists" />
+			<!-- set properties based on parameters -->
+			<condition property="dir.exists">
+				<and>
+					<not>
+						<equals arg1="@{dir}" arg2="" trim="yes"/>
+					</not>
+					<available file="@{dir}" type="dir"/>
+				</and>
+			</condition>
+			<sequential if:set="dir.exists">
+				<echo message="delete contents of @{dir}" />
+				<delete includeemptydirs="true">
+					<fileset dir="@{dir}" includes="**/*"/>
+				</delete>
+			</sequential>
+		</sequential>
+	</macrodef>
+	
 	<!-- setup ivy and download dependencies -->
 	<macrodef name="ivy-download-deps"
 		description="download ivy and then download dependencies defined in ivy.xml">
@@ -493,7 +503,8 @@
 	<!-- ******************************************************************************** -->
 	<!-- * DEFAULT TARGETS (OVERRIDE IN MAIN IF NEED BE)									-->
 	<!-- ******************************************************************************** -->
-	
+
+	<!-- create build directories and setup basic properties -->
 	<target name="mkdirs-and-setup-props">
 		<set-default-props />
 		
@@ -502,9 +513,19 @@
 		<create-build-dirs />
 	</target>
 
+	<!-- remove all files from library dir -->
+	<target name="delete-libraries"
+			depends="mkdirs-and-setup-props"
+			description="deletes all files in library dir">
+		
+		<clean-dir-if-exists dir="${dir.library}"/>
+	</target>
+	
+	<!-- clean up all build artifacts --> 
 	<target name="clean-all"
 			description="cleanup all build artifacts"
 			depends="mkdirs-and-setup-props">
+		
 		<clean-build-dirs />
 	</target>
 	
