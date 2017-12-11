@@ -369,6 +369,81 @@
 	</macrodef>
 	
 	
+	<!-- create pom file -->
+	<macrodef name="create-mvn-pom"
+		description="Build pom.xml">
+		<attribute name="destdir" default="${dir.mvnlib}"/>
+		<attribute name="ivyfile" default="${basedir}/ivy.xml"/>
+		<attribute name="pomtemplate" default="${dir.buildresource}/pom_template.xml" />
+		<attribute name="release" default="no" />
+		<attribute name="artifactId" default=""/>
+		<attribute name="version" default=""/>
+		<attribute name="description" default="${mvn.description}" />
+		<attribute name="url" default="${mvn.url}" />
+		
+		<sequential>
+			<!-- properties local to macro -->
+			<local name="mvn.build.release.jar"/>
+			<local name="mvn.full.version"/>
+			<local name="pomfile" />
+			
+			<property name="pomfile" value="@{destdir}/pom.xml"/>
+			
+			<!-- check whether release should be build -->
+			<condition property="mvn.build.release.jar">
+				<equals arg1="@{release}" arg2="yes" trim="yes"/>
+			</condition>
+			
+			<!-- create pom.xml -->
+			<echo message="**********************************************************"/>
+			<echo message="*  CREATE POM @{pomfile}"/>
+			<echo message="**********************************************************"/>
+
+			<ivy:info file="@{ivyfile}" />
+			
+			<!-- determine group, artifact, version -->
+			<condition property="mvn.version" value="${ivy.revision}">
+				<equals arg1="@{version}" arg2="" trim="yes"/>
+			</condition>
+			<condition property="mvn.version" value="@{version}">
+				<not><equals arg1="@{version}" arg2="" trim="yes"/></not>
+			</condition>
+			<condition property="mvn.artifactId" value="${ivy.module}">
+				<equals arg1="@{artifactId}" arg2="" trim="yes"/>
+			</condition>
+			<condition property="mvn.artifactId" value="@{artifactId}">
+				<not><equals arg1="@{artifactId}" arg2="" trim="yes"/></not>
+			</condition>
+			
+			<sequential if:set="mvn.build.release.jar">
+				<property name="mvn.full.version" value="${mvn.version}-RELEASE"/>
+				<property name="mvn.is.release" value="-RELEASE"/>
+			</sequential>
+			<sequential unless:set="mvn.build.release.jar">
+				<property name="mvn.full.version" value="${mvn.version}-SNAPSHOT"/>
+				<property name="mvn.is.release" value="-SNAPSHOT"/>
+			</sequential>
+						
+			<!-- make pom from ivy file -->
+			<local name="ivy.pom.name" />
+			<local name="ivy.pom.description" />
+			<local name="ivy.pom.url" />
+			<property name="ivy.pom.name" value="${mvn.artifactId}" />
+			<property name="ivy.pom.description" value="@{description}" />
+			<property name="ivy.pom.url" value="@{url}" />
+			
+			<echo message="build POM for ${mvn.artifactId} ${mvn.version} (${mvn.full.version}) - ${ivy.pom.name}
+				${ivy.pom.description}
+				${ivy.pom.url}
+				" />
+			
+			<ivy:makepom ivyfile="@{ivyfile}" pomfile="${pomfile}" templatefile="@{pomtemplate}" conf="default,runtime">
+			   <mapping conf="default" scope="compile"/>
+			   <mapping conf="runtime" scope="runtime"/>
+			</ivy:makepom>
+	   </sequential>
+	</macrodef>
+	
 	<!-- ******************************************************************************** -->
 	<!-- * DEFAULT TARGETS (OVERRIDE IN MAIN IF NEED BE)									-->
 	<!-- ******************************************************************************** -->
@@ -483,6 +558,10 @@
 	</target>
 	
 	<!-- deploy to mvn central -->
+	<target name="create-pom" depends="define-tasks-and-setup-paths">
+		<create-mvn-pom/>
+	</target>
+	
 	<target name="deploy-snapshot" 
 			depends="jar,java-doc"
 			description="generate jars and pom.xml and deploy them as a snapshot to OSSRH">
