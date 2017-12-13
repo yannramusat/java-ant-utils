@@ -7,7 +7,88 @@
 	xmlns:if="ant:if"
     xmlns:unless="ant:unless"
 >	
-
+	<!-- fails if value is empty -->
+	<macrodef name="fail-if-empty"
+		description="fail if argument is empty">
+		
+		<attribute name="arg"/>
+		<attribute name="message" default="" />
+		<attribute name="trim" default="yes" />
+		
+		<sequential>
+			<fail message="@{message}">
+				<condition>
+					<equals arg1="@{arg}" arg2="" trim="@{trim}" />
+				</condition>
+			</fail>
+		</sequential>
+	</macrodef>
+	
+	<!-- fails if dir does not exist -->
+	<macrodef name="fail-not-exists"
+		description="fail if dir (default) or file does not exist">
+		
+		<attribute name="arg"/>
+		<attribute name="message" default="" />
+		<attribute name="trim" default="yes" />
+		<attribute name="type" default="dir" />
+		<sequential>
+			<fail message="@{message}">
+				<condition>
+					<equals arg1="@{arg}" arg2="" trim="@{trim}" />
+				</condition>
+			</fail>
+			<fail message="@{message}">
+				<condition>
+					<not>
+						<available file="@{arg}" type="@{type}"/>
+					</not>
+				</condition>
+			</fail>
+		</sequential>
+	</macrodef>
+		
+	<!-- set prop if not empty -->
+	<macrodef name="set-prop-if-not-empty"
+		description="set a property if the argument is not empty">
+		
+		<attribute name="arg"/>
+		<attribute name="propname" />
+		<attribute name="trim" default="yes" />
+		
+		<sequential>
+			<condition property="@{propname}">
+				<not>
+					<equals arg1="@{arg}" arg2="" trim="@{trim}" />
+				</not>
+			</condition>
+		</sequential>
+	</macrodef>
+	
+	<!-- cleans the contents of one directory if it exists -->
+	<macrodef name="clean-dir-if-exists"
+			description="delete the contents of directory if it exists">
+		<attribute name="dir"/>
+		<sequential>
+			<local name="dir.exists" />
+			<!-- set properties based on parameters -->
+			<condition property="dir.exists">
+				<and>
+					<not>
+						<equals arg1="@{dir}" arg2="" trim="yes"/>
+					</not>
+					<available file="@{dir}" type="dir"/>
+				</and>
+			</condition>
+			<sequential if:set="dir.exists">
+				<echo message="delete contents of @{dir}" />
+				<delete includeemptydirs="true">
+					<fileset dir="@{dir}" includes="**/*"/>
+				</delete>
+			</sequential>
+		</sequential>
+	</macrodef>
+	
 	<!-- set default directory properties -->
 	<macrodef name="set-default-props"
 			description="set default directory properties">
@@ -81,30 +162,6 @@
 		</sequential>
 	</macrodef>
 	
-	<!-- cleans the contents of one directory if it exists -->
-	<macrodef name="clean-dir-if-exists"
-			description="delete the contents of directory if it exists">
-		<attribute name="dir"/>
-		<sequential>
-			<local name="dir.exists" />
-			<!-- set properties based on parameters -->
-			<condition property="dir.exists">
-				<and>
-					<not>
-						<equals arg1="@{dir}" arg2="" trim="yes"/>
-					</not>
-					<available file="@{dir}" type="dir"/>
-				</and>
-			</condition>
-			<sequential if:set="dir.exists">
-				<echo message="delete contents of @{dir}" />
-				<delete includeemptydirs="true">
-					<fileset dir="@{dir}" includes="**/*"/>
-				</delete>
-			</sequential>
-		</sequential>
-	</macrodef>
-	
 	<!-- setup ivy and download dependencies -->
 	<macrodef name="ivy-download-deps"
 		description="download ivy and then download dependencies defined in ivy.xml">
@@ -151,13 +208,10 @@
 			</sequential>
 	        
 			<!-- fail if no ivy jar file -->
-			<fail message="missing ivy.jar and was unable to download the jar">
-		    		<condition>
-		    			<not>
-		    				<available file="${ivy.jar.file}" type="file"/>
-		    			</not>
-		    		</condition>
-	       	</fail>	
+			<fail-not-exists 
+				arg="${ivy.jar.file}" 
+				type="file" 
+				message="missing ivy.jar and was unable to download the jar"/>
 			
 			<!-- define ivy tasks -->
 	        <path id="ivy.lib.path">
@@ -187,6 +241,8 @@
 			<echo message="**********************************************************"/>
 			<echo message="*  SETUP CLASS PATH @{pathname} for @{dir}"/>
 			<echo message="**********************************************************"/>
+			
+			<fail-not-exists arg="@{dir}"/>
 			
 			<path id="@{pathname}">
 				<fileset dir="@{dir}"/>
@@ -222,6 +278,8 @@
 			<echo message="**********************************************************"/>
 			<echo message="*  CREATE JAVADOC FOR @{srcdir} IN @{destdir}"/>
 			<echo message="**********************************************************"/>
+			
+			<fail-not-exists arg="${srcdir}" />
 			
 			<javadoc access="private" 
 				author="true" 
@@ -500,6 +558,54 @@
 	   </sequential>
 	</macrodef>
 	
+	<!-- create basic build dirs -->
+	<macrodef name="create-jar"
+		description="create a jar file">
+		
+		<attribute name="jar" default="${jar.bin}" />
+		<attribute name="classpath" default="${classpath.bin.jar}" />
+		<attribute name="bindir" default="${dir.bin}" />
+		<attribute name="jarcreator" default="${jar.creator}" />
+		<attribute name="adddirs" default="" />
+		<attribute name="mainclass" default="${mainclass}" />
+		
+		<sequential>
+			<echo message="**********************************************************"/>
+			<echo message="*  CREATE JAR @{jar} from @{bindir} including @{adddirs} "/>
+			<echo message="**********************************************************"/>
+
+			<local name="have.include.resources" />
+			
+			<fail-if-empty arg="@{jarcreator}" />
+			<fail-if-empty arg="@{mainclass}" />
+			<fail-not-exists arg="@{bindir}" />
+			
+			<set-prop-if-not-empty arg="@{addirs}" propname="have.include.resources"/>
+			
+			<sequential unless:set="have.include.resources">
+				<jar destfile="@{jar}" basedir="@{bindir}" update="true">
+					<manifest>
+						<attribute name="Main-Class" value="@{mainclass}" />
+						<attribute name="Created-By" value="@{jarcreator}" />
+						<attribute name="Class-Path" value="@{classpath}" />
+					</manifest>
+				</jar>
+			</sequential>
+			<sequential if:set="have.include.resources">
+				<jar destfile="@{jar}"  update="true">
+					<manifest>
+						<attribute name="Main-Class" value="@{mainclass}" />
+						<attribute name="Created-By" value="@{jarcreator}" />
+						<attribute name="Class-Path" value="@{classpath}" />
+					</manifest>
+					<multirootfileset basedirs="@{adddirs}" />
+					<fileset dir="@{bindir}" />
+				</jar>
+			</sequential>
+		</sequential>
+	</macrodef>
+
+	
 	<!-- ******************************************************************************** -->
 	<!-- * DEFAULT TARGETS (OVERRIDE IN MAIN IF NEED BE)									-->
 	<!-- ******************************************************************************** -->
@@ -606,22 +712,14 @@
 				<or>
 					<not><isset property="jar.bin" /></not>
 					<not><isset property="dir.bin" /></not>
-					<not><isset property="mainClass" /></not>
+					<not><isset property="mainclass" /></not>
 					<not><isset property="classpath.bin.jar" /></not>
 					<not><isset property="jar.creator" /></not>
 				</or>
 			</condition>
 		</fail>
 		
-		<!-- create jar file -->
-		<jar destfile="${jar.bin}" basedir="${dir.bin}">
-			<manifest>
-				<attribute name="Main-Class" value="${mainClass}" />
-				<attribute name="Created-By" value="${jar.creator}" />
-				<attribute name="Class-Path" value="${classpath.bin.jar}" />
-			</manifest>
-		</jar>
-		<copy file="${jar.bin}" tofile="${basedir}/toxgene.jar" overwrite="true"/>
+		<create-jar/>
 	</target>
 	
 	<!-- deploy to mvn central -->
