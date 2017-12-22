@@ -232,11 +232,14 @@
 	</macrodef>
 	
 	<!-- create a class path from all jars in a dir -->
-	<macrodef name="classpath-from-dir">
+	<macrodef name="classpath-from-dir"
+		description="create a classpath including all jars in a directory">
+		
 		<attribute name="dir" default="${dir.library}"/>
 		<attribute name="pathname" default="${classpath.name.bin}" />
 		<attribute name="pathnamejar" default="${classpath.name.bin}.jar"/>
 		<attribute name="jarcplibdir" default="lib" />
+
 		<sequential>
 			<echo message="**********************************************************"/>
 			<echo message="*  SETUP CLASS PATH @{pathname} for @{dir}"/>
@@ -605,6 +608,32 @@
 		</sequential>
 	</macrodef>
 
+	<!-- detect OS -->
+	<macrodef name="detect-os"
+		description="create a jar file">
+				
+		<attribute name="typeprop" default="os.type" />
+		
+		<sequential>
+			<local name="local.os" />
+			<condition property="local.os" value="windows">
+				<os family="windows" />
+			</condition>
+			<condition property="local.os" value="unix">
+				<os family="unix" />
+			</condition>
+			<condition property="local.os" value="max">
+				<os family="mac" />
+			</condition>
+			
+			<echo message="**********************************************************"/>
+			<echo message="*  OS IS ${local.os} "/>
+			<echo message="**********************************************************"/>
+			
+			<property name="@{typeprop}" value="${local.os}"/>	    
+		</sequential>
+	</macrodef>
+	
 	
 	<!-- ******************************************************************************** -->
 	<!-- * DEFAULT TARGETS (OVERRIDE IN MAIN IF NEED BE)									-->
