@@ -71,6 +71,28 @@
 		</sequential>
 	</macrodef>
 	
+	<!-- create dir if empty string -->
+	<macrodef name="mkdir-if-not-empty"
+		description="create directory unless the argument is empty">
+		
+		<attribute name="dir"/>
+		<attribute name="message" default="" />
+		<attribute name="trim" default="yes" />
+		
+		<sequential>
+			<local name="is-empty" />
+			
+			<condition property="is-empty">
+				<equals arg1="@{arg}" arg2="" trim="@{trim}" />
+			</condition>
+			
+			<sequential unless:set="is-empty">
+				<mkdir dir="@{arg}"/>
+			</sequential>
+			
+		</sequential>
+	</macrodef>
+	
 	<!-- set prop if not empty -->
 	<macrodef name="set-prop-if-not-empty"
 		description="set a property if the argument is not empty">
@@ -142,12 +164,12 @@
 		<attribute name="dir.deploy" default="${dir.deploy}" />
 		
 		<sequential>
-			<mkdir dir="@{dir.bin}" />
-			<mkdir dir="@{dir.build}" />
-			<mkdir dir="@{dir.buildlib}" />
-			<mkdir dir="@{dir.mvn}"/>
-			<mkdir dir="@{dir.mvnlib}"/>
-			<mkdir dir="@{dir.deploy}" />
+			<mkdir-if-not-empty dir="@{dir.bin}" />
+			<mkdir-if-not-empty dir="@{dir.build}" />
+			<mkdir-if-not-empty dir="@{dir.buildlib}" />
+			<mkdir-if-not-empty dir="@{dir.mvn}"/>
+			<mkdir-if-not-empty dir="@{dir.mvnlib}"/>
+			<mkdir-if-not-empty dir="@{dir.deploy}" />
 		</sequential>
 	</macrodef>
 		
@@ -206,14 +228,19 @@
 			
 			<!-- set properties based on parameters -->
 			<condition property="have-buildlibsdir">
-				<not>
-					<equals arg1="@{buildlibsdir}" arg2="" trim="yes"/>
-				</not>
+				<and>
+					<not>
+						<equals arg1="@{buildlibsdir}" arg2="" trim="yes"/>
+					</not>
+					<not>
+						<equals arg1="@{buildivyfile}" arg2="" trim="yes"/>
+					</not>
+				</and>
 			</condition>
 			
 			<!-- set ivy properties -->
 			<condition property="ivy.home" value="${env.IVY_HOME}">
-			  <isset property="env.IVY_HOME" />
+				<isset property="env.IVY_HOME" />
 			</condition>
 			<property name="ivy.jar.dir" value="@{ivyjardir}" />
 			<property name="ivy.jar.file" value="${ivy.jar.dir}/ivy.jar" />
@@ -222,10 +249,16 @@
 					<writable/>
 				</isfileselected>
 			</condition>
-				
+			
+			<!-- can reach ivy -->
+			<condition property="am-offline">
+			  	<not><isreachable url="http://www.google.com" timeout="2"/></not>
+			</condition>
+	
 	        <!-- download Ivy from web site so that it can be used even without any special installation -->
 			<mkdir dir="${ivy.jar.dir}"/>
-			<sequential unless:set="offline">
+			<sequential if:set="am-offline">
+				<echo message=" - downloading ivy" />
 				<get src="http://repo2.maven.org/maven2/org/apache/ivy/ivy/@{ivyversion}/ivy-@{ivyversion}.jar" 
 		             dest="${ivy.jar.file}" 
 		        		 usetimestamp="true"
@@ -246,10 +279,18 @@
 					uri="antlib:org.apache.ivy.ant" 
 		     		classpathref="ivy.lib.path"/>
 			
+			<!-- download libraries -->
 			<sequential if:set="have-buildlibsdir">
+				<fail-not-exists arg="@{buildivyfile}" 
+						type="file" 
+						message="did not find ivy build file @{buildivyfile}"/>
 				<ivy:resolve file="@{buildivyfile}" />
 				<ivy:retrieve sync="false" type="jar" pattern="@{buildlibsdir}/[artifact]-[revision].[ext]" />
 			</sequential>
+			
+			<fail-not-exists arg="@{ivyfile}" 
+					type="file" 
+					message="did not find ivy  file @{ivyfile}"/>
 			<ivy:resolve file="@{ivyfile}"/> 
 			<ivy:retrieve sync="false" type="jar" pattern="@{libsdir}/@{namepattern}" />
 				
@@ -806,11 +847,11 @@
 			<condition property="local.os" value="windows">
 				<os family="windows" />
 			</condition>
+			<condition property="local.os" value="mac">
+				<os family="mac" />
+			</condition>
 			<condition property="local.os" value="unix">
 				<os family="unix" />
-			</condition>
-			<condition property="local.os" value="max">
-				<os family="mac" />
 			</condition>
 			
 			<echo message="**********************************************************"/>
