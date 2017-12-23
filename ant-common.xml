@@ -47,7 +47,30 @@
 			</fail>
 		</sequential>
 	</macrodef>
+	
+	<!-- define task -->
+	<macrodef name="define-task" 
+		description="load an ant task">
 		
+		<attribute name="classpath" />
+		<attribute name="classname"/>
+		<attribute name="name"/>
+		
+		<sequential>
+			<fail-if-empty arg="@{classpath}"/>
+			<fail-if-empty arg="@{classname}"/>
+			<fail-if-empty arg="@{classpath}"/>
+			
+			<echo message=" - define task @{name} - @{classname} - @{classpath}"/>
+			
+		    <taskdef 
+		    		name="@{name}"
+		    		classname="@{classname}" 
+		        classpath="@{classpath}" 
+		    		onerror="report"/>
+		</sequential>
+	</macrodef>
+	
 	<!-- set prop if not empty -->
 	<macrodef name="set-prop-if-not-empty"
 		description="set a property if the argument is not empty">
@@ -176,11 +199,13 @@
 				
 		<sequential>
 			<echo message="**********************************************************"/>
-			<echo message="*  SETUP IVY @{ivy.install.version} AND DOWNLOAD DEPENDENCIES"/>
+			<echo message="*  SETUP IVY @{ivyversion} AND DOWNLOAD DEPENDENCIES"/>
 			<echo message="**********************************************************"/>
 		
+			<local name="${have-buildlibsdir}" />
+			
 			<!-- set properties based on parameters -->
-			<condition property="buildlibsdir">
+			<condition property="have-buildlibsdir">
 				<not>
 					<equals arg1="@{buildlibsdir}" arg2="" trim="yes"/>
 				</not>
@@ -221,7 +246,7 @@
 					uri="antlib:org.apache.ivy.ant" 
 		     		classpathref="ivy.lib.path"/>
 			
-			<sequential if:set="buildlibsdir">
+			<sequential if:set="have-buildlibsdir">
 				<ivy:resolve file="@{buildivyfile}" />
 				<ivy:retrieve sync="false" type="jar" pattern="@{buildlibsdir}/[artifact]-[revision].[ext]" />
 			</sequential>
@@ -608,6 +633,166 @@
 		</sequential>
 	</macrodef>
 
+	<!-- create a fat jar with onejar -->
+	<macrodef name="create-onejar"
+		description="create a fat jar file using one-jar">
+		
+		<attribute name="jar" default="${jar.bin.fat}" />
+		<attribute name="classpath" default="${classpath.bin.jar}" />
+		<attribute name="bindir" default="${dir.bin}" />
+		<attribute name="jarcreator" default="${jar.creator}" />
+		<attribute name="adddirs" default="" />
+		<attribute name="mainclass" default="${mainclass}" />
+		<attribute name="libdir" default="${dir.library}" />
+		<attribute name="binlib" default="" />
+		<attribute name="onejarcp" default="${classpath.name.build}" />
+		
+		<sequential>
+			<echo message="**********************************************************"/>
+			<echo message="*  CREATE ONEJAR @{jar} from @{bindir} including @{libdir} and @{adddirs} "/>
+			<echo message="**********************************************************"/>
+
+			<local name="have.include.resources" />
+			<local name="have.bin.lib" />			
+			<local name="include-and-bin" />
+			<local name="include-and-not-bin" />
+			<local name="not-include-and-bin" />
+			<local name="not-include-and-not-bin" />
+			
+			<fail-if-empty arg="@{jarcreator}" />
+			<fail-if-empty arg="@{mainclass}" />
+			<fail-not-exists arg="@{bindir}" />
+			
+			<set-prop-if-not-empty arg="@{addirs}" propname="have.include.resources"/>
+			<set-prop-if-not-empty arg="@{binlib}" propname="have.bin.lib"/>
+		
+			<condition property="include-and-bin">
+				<and>
+					<is-set prop="${have.include.resources}" />
+					<is-set prop="${have.bin.lib}" />
+				</and>
+			</condition>		
+			
+			<condition property="include-and-not-bin">
+				<and>
+					<is-set prop="${have.include.resources}" />
+					<not><is-set prop="${have.bin.lib}" /></not>
+				</and>
+			</condition>
+			
+			<condition property="not-include-and-bin">
+				<and>
+					<not><is-set prop="${have.include.resources}" /></not>
+					<is-set prop="${have.bin.lib}" />
+				</and>
+			</condition>
+			
+			<condition property="not-include-and-not-bin">
+				<and>
+					<not><is-set prop="${have.include.resources}" /></not>
+					<not><is-set prop="${have.bin.lib}" /></not>
+				</and>
+			</condition>
+			
+			<!-- define onejar anttask -->
+		    <define-task 
+		    		name="one-jar" 
+			    	classname="com.simontuffs.onejar.ant.OneJarTask" 
+			    	classpath="@{onejarcp}" />  
+			<taskdef resource="org/apache/ivy/ant/antlib.xml"
+					uri="antlib:org.apache.ivy.ant" 
+		     		classpathref="ivy.lib.path"/>
+		    <property name="one-jar.dist.dir" value="./ant"/>   
+		    <property name="one-jar.version" value="0.97"/>
+		    <property name="one-jar.ant.jar" value="${one-jar.dist.dir}/one-jar-ant-task-${one-jar.version}.jar"/>
+		    <taskdef 
+		    		name="one-jar"
+		    		classname="com.simontuffs.onejar.ant.OneJarTask" 
+		        classpath="@{onejarcp}" 
+		    		onerror="report"/>			
+			
+			<!-- do work -->
+			<delete file="@{jar}"/>
+			
+			<!-- no additional includes -->
+			<sequential if:set="not-include-and-not-bin">
+				<one-jar destfile="@{jar}">
+		            <manifest>
+						<attribute name="Created-By" value="@{jarcreator}" />
+		            	<!-- <attribute name="One-Jar-Expand" value=""/>
+		                <attribute name="One-Jar-Expand-Dir" value="./.expand"/>
+		                <attribute name="One-Jar-Show-Expand" value="true"/> -->
+		    	        		<attribute name="One-Jar-Main-Class" value="@{mainclass}" />
+		            		<attribute name="Class-Path" value="@{classpath}" />
+		            </manifest>
+		            <main>
+		                <fileset dir="@{bindir}/"/>
+		            </main>
+		            <lib>
+		                <fileset file="@{libdir}/*.jar" />
+		            </lib>
+				</one-jar> 
+			</sequential>
+			<!-- include both additional dirs and not bin -->
+			<sequential if:set="include-and-not-bin">
+				<one-jar destfile="@{jar}">
+		            <manifest>
+						<attribute name="Created-By" value="@{jarcreator}" />
+		    	        		<attribute name="One-Jar-Main-Class" value="@{mainclass}" />
+		            		<attribute name="Class-Path" value="@{classpath}" />
+		            </manifest>
+		            <main>
+		                <fileset dir="@{bindir}/"/>
+		            </main>
+		            <lib>
+		                <fileset file="@{libdir}/*.jar" />
+		            </lib>
+					<multirootfileset basedirs="@{adddirs}" />
+				</one-jar> 
+			</sequential>
+			<!-- include native libraries -->
+			<sequential if:set="not-include-and-bin">
+				<one-jar destfile="@{jar}">
+		            <manifest>
+						<attribute name="Created-By" value="@{jarcreator}" />
+		    	        		<attribute name="One-Jar-Main-Class" value="@{mainclass}" />
+		            		<attribute name="Class-Path" value="@{classpath}" />
+		            </manifest>
+		            <main>
+		                <fileset dir="@{bindir}/"/>
+		            </main>
+		            <lib>
+		                <fileset file="@{libdir}/*.jar" />
+		            </lib>
+		        		<binlib>
+		        			<fileset file="@{binlib}" />
+		        		</binlib>
+				</one-jar> 
+			</sequential>
+			<!-- include both additional dirs and naitve libraries -->
+			<sequential if:set="include-and-bin">
+				<one-jar destfile="@{jar}">
+		            <manifest>
+						<attribute name="Created-By" value="@{jarcreator}" />
+		    	        		<attribute name="One-Jar-Main-Class" value="@{mainclass}" />
+		            		<attribute name="Class-Path" value="@{classpath}" />
+		            </manifest>
+		            <main>
+		                <fileset dir="@{bindir}/"/>
+		            </main>
+		            <lib>
+		                <fileset file="@{libdir}/*.jar" />
+		            </lib>
+		        		<binlib>
+		        			<fileset file="@{binlib}" />
+		        		</binlib>
+					<multirootfileset basedirs="@{adddirs}" />
+				</one-jar> 
+			</sequential>
+		</sequential>
+	</macrodef>	
+
+	
 	<!-- detect OS -->
 	<macrodef name="detect-os"
 		description="create a jar file">
@@ -615,6 +800,8 @@
 		<attribute name="typeprop" default="os.type" />
 		
 		<sequential>
+			<fail-if-empty arg="@{typeprop}" />
+			
 			<local name="local.os" />
 			<condition property="local.os" value="windows">
 				<os family="windows" />
@@ -709,6 +896,10 @@
 			</condition>
 		</fail>
 		
+		<echo message="**********************************************************"/>
+		<echo message="*  COMPILE ${dir.source} TO ${dir.bin} using ${classpath.name.bin} "/>
+		<echo message="**********************************************************"/>
+		
 		<javac srcdir="${dir.source}" destdir="${dir.bin}" 
 			classpathref="${classpath.name.bin}" debug="on" includeantruntime="false">
 			<compilerarg value="-Xlint:unchecked" />
@@ -735,7 +926,7 @@
 	<target name="jar" 
 		depends="compile"
 		description="generate jar file">
-
+		
 		<fail message="not all parameters setup for building a jar">
 			<condition>
 				<or>
