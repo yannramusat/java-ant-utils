@@ -199,7 +199,7 @@
 				
 		<sequential>
 			<echo message="**********************************************************"/>
-			<echo message="*  SETUP IVY @{ivyversion} AND DOWNLOAD DEPENDENCIES"/>
+			<echo message="*  SETUP IVY @{ivyversion} AND DOWNLOAD DEPENDENCIES (@{ivyfile}, @{buildivyfile})"/>
 			<echo message="**********************************************************"/>
 		
 			<local name="${have-buildlibsdir}" />
