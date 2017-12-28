@@ -114,7 +114,7 @@
 	<macrodef name="mkdir-if-not-empty"
 		description="create directory unless the argument is empty">
 		
-		<attribute name="dir"/>
+		<attribute name="dir" default="" />
 		<attribute name="message" default="" />
 		<attribute name="trim" default="yes" />
 		
@@ -122,11 +122,15 @@
 			<local name="is-empty" />
 			
 			<condition property="is-empty">
-				<equals arg1="@{arg}" arg2="" trim="@{trim}" />
+				<or>
+					<equals arg1="@{dir}" arg2="" trim="@{trim}" />
+					<contains string="@{dir}" substring="$$" />
+				</or>
 			</condition>
 			
 			<sequential unless:set="is-empty">
-				<mkdir dir="@{arg}"/>
+				<echo message="create if does not exist: @{dir}" />
+				<mkdir dir="@{dir}"/>
 			</sequential>
 			
 		</sequential>
@@ -263,10 +267,11 @@
 			<echo message="*  SETUP IVY @{ivyversion} AND DOWNLOAD DEPENDENCIES (@{ivyfile}, @{buildivyfile})"/>
 			<echo message="**********************************************************"/>
 		
-			<local name="${have-buildlibsdir}" />
+			<local name="have.buildlibsdir" />
+			<local name="have.ivy.jar" />
 			
 			<!-- set properties based on parameters -->
-			<condition property="have-buildlibsdir">
+			<condition property="have.buildlibsdir">
 				<and>
 					<not>
 						<equals arg1="@{buildlibsdir}" arg2="" trim="yes"/>
@@ -288,22 +293,30 @@
 					<writable/>
 				</isfileselected>
 			</condition>
-			
-			<!-- can reach ivy -->
-			<condition property="am-offline">
-			  	<not><isreachable url="http://www.google.com" timeout="2"/></not>
+			<condition property="have.ivy.jar">
+				<available file="${ivy.jar.file}" type="file"/>
 			</condition>
-	
-	        <!-- download Ivy from web site so that it can be used even without any special installation -->
-			<mkdir dir="${ivy.jar.dir}"/>
-			<sequential if:set="am-offline">
-				<echo message=" - downloading ivy" />
-				<get src="http://repo2.maven.org/maven2/org/apache/ivy/ivy/@{ivyversion}/ivy-@{ivyversion}.jar" 
-		             dest="${ivy.jar.file}" 
-		        		 usetimestamp="true"
-		        	    />
+			
+			
+			<!-- only try to download ivy if it does not exist already -->
+			<sequential unless:set="have.ivy.jar">
+				<!-- can reach ivy -->
+				<condition property="am-offline">
+				  	<not><isreachable url="http://www.google.com" timeout="10"/></not>
+				</condition>
+		
+		        <!-- download Ivy from web site so that it can be used even without any special installation -->
+				<mkdir dir="${ivy.jar.dir}"/>
+				<sequential unless:set="am-offline">
+					<echo message=" - downloading ivy" />
+					<get src="http://repo2.maven.org/maven2/org/apache/ivy/ivy/@{ivyversion}/ivy-@{ivyversion}.jar" 
+			             dest="${ivy.jar.file}" 
+			        		 usetimestamp="true"
+						 skipexisting="true"
+			        	    />
+				</sequential>
 			</sequential>
-	        
+			
 			<!-- fail if no ivy jar file -->
 			<fail-not-exists 
 				arg="${ivy.jar.file}" 
@@ -319,7 +332,7 @@
 		     		classpathref="ivy.lib.path"/>
 			
 			<!-- download libraries -->
-			<sequential if:set="have-buildlibsdir">
+			<sequential if:set="have.buildlibsdir">
 				<fail-not-exists arg="@{buildivyfile}" 
 						type="file" 
 						message="did not find ivy build file @{buildivyfile}"/>
