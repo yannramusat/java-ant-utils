@@ -48,26 +48,65 @@
 		</sequential>
 	</macrodef>
 	
+	<!-- print fileset -->
+	<macrodef name="print-fileset"
+			description="print the contents of a fileset">
+		
+		<attribute name="filesetid" default=""/>
+		
+		<sequential>
+			<fail-if-empty arg="@{filesetid}" />
+		
+			<local name="additional.resources" />
+			
+		    <!-- Format path -->
+		    <pathconvert pathsep="${line.separator}   - "
+		    		property="additional.resources">
+					<path>
+				   		<fileset refid="@{filesetid}" />
+				    </path>
+		    </pathconvert>
+			<echo message="files:${line.separator}   - ${additional.resources}${line.separator}" />	
+		</sequential>
+	</macrodef>
+	
 	<!-- define task -->
 	<macrodef name="define-task" 
 		description="load an ant task">
 		
-		<attribute name="classpath" />
+		<attribute name="classpath" default="" />
+		<attribute name="classpathref" default="" />
 		<attribute name="classname"/>
 		<attribute name="name"/>
 		
 		<sequential>
-			<fail-if-empty arg="@{classpath}"/>
+			<local name="use.ref" />
+			
 			<fail-if-empty arg="@{classname}"/>
-			<fail-if-empty arg="@{classpath}"/>
+			<fail-if-empty arg="@{name}"/>
 			
-			<echo message=" - define task @{name} - @{classname} - @{classpath}"/>
+			<set-prop-if-not-empty arg="@{classpathref}" propname="use-ref" />
+			<set-prop-if-not-empty arg="@{name}" propname="use-name" />
 			
-		    <taskdef 
-		    		name="@{name}"
-		    		classname="@{classname}" 
-		        classpath="@{classpath}" 
-		    		onerror="report"/>
+			<!-- use classpathref -->
+			<sequential unless:set="use.ref">
+				<echo message=" - define task @{name} - @{classname} - classpathref=@{classpathref}"/>
+			    <taskdef 
+			    		name="@{name}"
+			    		classname="@{classname}" 
+			        classpathref="@{classpathref}" 
+			    		onerror="report"/>
+			</sequential>
+			
+			<!-- use classpath -->
+			<sequential if:set="use.ref">
+				<echo message=" - define task @{name} - @{classname} - classpath=@{classpath}"/>
+			    <taskdef 
+			    		name="@{name}"
+			    		classname="@{classname}" 
+			        classpath="@{classpath}" 
+			    		onerror="report"/>
+			</sequential>
 		</sequential>
 	</macrodef>
 	
@@ -682,15 +721,17 @@
 		<attribute name="classpath" default="${classpath.bin.jar}" />
 		<attribute name="bindir" default="${dir.bin}" />
 		<attribute name="jarcreator" default="${jar.creator}" />
-		<attribute name="adddirs" default="" />
+		<attribute name="resourcefileset" default="" />
 		<attribute name="mainclass" default="${mainclass}" />
 		<attribute name="libdir" default="${dir.library}" />
 		<attribute name="binlib" default="" />
+		<attribute name="basedir" default="${basedir}" />
 		<attribute name="onejarcp" default="${classpath.name.build}" />
 		
 		<sequential>
 			<echo message="**********************************************************"/>
-			<echo message="*  CREATE ONEJAR @{jar} from @{bindir} including @{libdir} and @{adddirs} "/>
+			<echo message="*  CREATE ONEJAR @{jar} from @{bindir} including @{libdir} with native libraries @{binlib} "/>
+			<echo message="*  also include @{resourcefileset} in @{basedir}" />
 			<echo message="**********************************************************"/>
 
 			<local name="have.include.resources" />
@@ -700,38 +741,45 @@
 			<local name="not-include-and-bin" />
 			<local name="not-include-and-not-bin" />
 			
+			<fail-if-empty arg="@{jar}" />
 			<fail-if-empty arg="@{jarcreator}" />
 			<fail-if-empty arg="@{mainclass}" />
 			<fail-not-exists arg="@{bindir}" />
 			
-			<set-prop-if-not-empty arg="@{addirs}" propname="have.include.resources"/>
+			<set-prop-if-not-empty arg="@{resourcefileset}" propname="have.include.resources"/>
 			<set-prop-if-not-empty arg="@{binlib}" propname="have.bin.lib"/>
 		
+			<echo message="include extra resources from fileset: ${have.include.resources} native libraries: ${have.bin.lib}" />
+			
+			<sequential if:set="have.include.resources">
+				<print-fileset filesetid="@{resourcefileset}"/>
+			</sequential>
+			
 			<condition property="include-and-bin">
 				<and>
-					<is-set prop="${have.include.resources}" />
-					<is-set prop="${have.bin.lib}" />
+					<isset property="have.include.resources" />
+					<isset property="have.bin.lib" />
 				</and>
 			</condition>		
 			
 			<condition property="include-and-not-bin">
 				<and>
-					<is-set prop="${have.include.resources}" />
-					<not><is-set prop="${have.bin.lib}" /></not>
+					<isset property="have.include.resources" />
+					<not><isset property="have.bin.lib" /></not>
 				</and>
 			</condition>
 			
 			<condition property="not-include-and-bin">
 				<and>
-					<not><is-set prop="${have.include.resources}" /></not>
-					<is-set prop="${have.bin.lib}" />
+					<not><isset property="have.include.resources" /></not>
+					<isset property="have.bin.lib" />
 				</and>
 			</condition>
 			
 			<condition property="not-include-and-not-bin">
 				<and>
-					<not><is-set prop="${have.include.resources}" /></not>
-					<not><is-set prop="${have.bin.lib}" /></not>
+					<not><isset property="have.include.resources" /></not>
+					<not><isset property="have.bin.lib" /></not>
 				</and>
 			</condition>
 			
@@ -739,24 +787,14 @@
 		    <define-task 
 		    		name="one-jar" 
 			    	classname="com.simontuffs.onejar.ant.OneJarTask" 
-			    	classpath="@{onejarcp}" />  
-			<taskdef resource="org/apache/ivy/ant/antlib.xml"
-					uri="antlib:org.apache.ivy.ant" 
-		     		classpathref="ivy.lib.path"/>
-		    <property name="one-jar.dist.dir" value="./ant"/>   
-		    <property name="one-jar.version" value="0.97"/>
-		    <property name="one-jar.ant.jar" value="${one-jar.dist.dir}/one-jar-ant-task-${one-jar.version}.jar"/>
-		    <taskdef 
-		    		name="one-jar"
-		    		classname="com.simontuffs.onejar.ant.OneJarTask" 
-		        classpath="@{onejarcp}" 
-		    		onerror="report"/>			
-			
+			    	classpathref="@{onejarcp}" />  
+
 			<!-- do work -->
 			<delete file="@{jar}"/>
 			
 			<!-- no additional includes -->
 			<sequential if:set="not-include-and-not-bin">
+				<echo message="no resources and no native libs" />
 				<one-jar destfile="@{jar}">
 		            <manifest>
 						<attribute name="Created-By" value="@{jarcreator}" />
@@ -776,6 +814,7 @@
 			</sequential>
 			<!-- include both additional dirs and not bin -->
 			<sequential if:set="include-and-not-bin">
+				<echo message="resources and no native libs" />
 				<one-jar destfile="@{jar}">
 		            <manifest>
 						<attribute name="Created-By" value="@{jarcreator}" />
@@ -783,16 +822,17 @@
 		            		<attribute name="Class-Path" value="@{classpath}" />
 		            </manifest>
 		            <main>
+		            		<fileset refid="@{resourcefileset}" />
 		                <fileset dir="@{bindir}/"/>
 		            </main>
 		            <lib>
 		                <fileset file="@{libdir}/*.jar" />
 		            </lib>
-					<multirootfileset basedirs="@{adddirs}" />
 				</one-jar> 
 			</sequential>
 			<!-- include native libraries -->
 			<sequential if:set="not-include-and-bin">
+				<echo message="no resources and native libs" />
 				<one-jar destfile="@{jar}">
 		            <manifest>
 						<attribute name="Created-By" value="@{jarcreator}" />
@@ -812,6 +852,7 @@
 			</sequential>
 			<!-- include both additional dirs and naitve libraries -->
 			<sequential if:set="include-and-bin">
+				<echo message="resources and native libs" />
 				<one-jar destfile="@{jar}">
 		            <manifest>
 						<attribute name="Created-By" value="@{jarcreator}" />
@@ -819,6 +860,7 @@
 		            		<attribute name="Class-Path" value="@{classpath}" />
 		            </manifest>
 		            <main>
+		            		<fileset refid="@{resourcefileset}" />
 		                <fileset dir="@{bindir}/"/>
 		            </main>
 		            <lib>
@@ -827,7 +869,6 @@
 		        		<binlib>
 		        			<fileset file="@{binlib}" />
 		        		</binlib>
-					<multirootfileset basedirs="@{adddirs}" />
 				</one-jar> 
 			</sequential>
 		</sequential>
