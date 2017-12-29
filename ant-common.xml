@@ -48,6 +48,28 @@
 		</sequential>
 	</macrodef>
 	
+	<!-- fail if an executable is not available -->
+	<macrodef name="fail-if-bin-not-exists"
+			description="Check if a binary is available and fail if it does not exist.">
+		<attribute name="bin" default=""/>
+		<attribute name="message" default="" />
+		<sequential>
+			<fail-if-empty arg="@{bin}" />
+			<local name="bin.exists" />
+			
+			<property environment="env" /> 
+			<available file="@{bin}"  
+					filepath="${env.PATH}"  
+					property="bin.exists"/>
+			
+			<fail>
+				<condition>
+					<not><isset property="bin.exists" /></not>
+				</condition>
+			</fail>
+		</sequential>
+	</macrodef>
+	
 	<!-- print fileset -->
 	<macrodef name="print-fileset"
 			description="print the contents of a fileset">
@@ -300,11 +322,13 @@
 			
 			<!-- only try to download ivy if it does not exist already -->
 			<sequential unless:set="have.ivy.jar">
-				<!-- can reach ivy -->
+				<!-- can reach maven repos -->
 				<condition property="am-offline">
-				  	<not><isreachable url="http://www.google.com" timeout="10"/></not>
+				  	<not><socket server="mvnrepository.com" port="443"/></not>
 				</condition>
 		
+				<echo if:set="am-offline" message="you are offline" />
+				
 		        <!-- download Ivy from web site so that it can be used even without any special installation -->
 				<mkdir dir="${ivy.jar.dir}"/>
 				<sequential unless:set="am-offline">
