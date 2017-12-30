@@ -100,7 +100,7 @@
 					filepath="${env.PATH}"  
 					property="bin.exists"/>
 			
-			<fail>
+			<fail message="did not fine @{bin}: @{message}">
 				<condition>
 					<not><isset property="bin.exists" /></not>
 				</condition>
@@ -323,91 +323,124 @@
 		<attribute name="ivyversion" default="2.2.0"/>
 				
 		<sequential>
+			<local name="have.buildlibsdir" />
+			<local name="have.ivy.jar" />			
+			<local name="have.skipivy" />
+			
 			<echo message="**********************************************************"/>
 			<echo message="*  SETUP IVY @{ivyversion} AND DOWNLOAD DEPENDENCIES (@{ivyfile}, @{buildivyfile})"/>
 			<echo message="**********************************************************"/>
-		
-			<local name="have.buildlibsdir" />
-			<local name="have.ivy.jar" />
 			
-			<!-- set properties based on parameters -->
-			<condition property="have.buildlibsdir">
-				<and>
-					<not>
-						<equals arg1="@{buildlibsdir}" arg2="" trim="yes"/>
-					</not>
-					<not>
-						<equals arg1="@{buildivyfile}" arg2="" trim="yes"/>
-					</not>
-				</and>
+			<property environment="env" />
+			
+			<condition property="have.skipivy">
+				<or>
+					<isset property="env.skipivy" />
+					<isset property="skipivy" />
+				</or>
 			</condition>
 			
-			<!-- set ivy properties -->
-			<condition property="ivy.home" value="${env.IVY_HOME}">
-				<isset property="env.IVY_HOME" />
-			</condition>
-			<property name="ivy.jar.dir" value="@{ivyjardir}" />
-			<property name="ivy.jar.file" value="${ivy.jar.dir}/ivy.jar" />
-			<condition property="ivy.writable">
-				<isfileselected file="${ivy.jar.dir}" >
-					<writable/>
-				</isfileselected>
-			</condition>
-			<condition property="have.ivy.jar">
-				<available file="${ivy.jar.file}" type="file"/>
-			</condition>
-			
-			
-			<!-- only try to download ivy if it does not exist already -->
-			<sequential unless:set="have.ivy.jar">
-				<!-- can reach maven repos -->
-				<condition property="am-offline">
-				  	<not><socket server="mvnrepository.com" port="443"/></not>
-				</condition>
-		
-				<echo if:set="am-offline" message="you are offline" />
+			<!-- still define ivy task to not fail other tasks -->
+			<sequential if:set="have.skipivy">
+				<echo message="user wants to skip ivy" />
+				<property name="ivy.jar.dir" value="@{ivyjardir}" />
+				<property name="ivy.jar.file" value="${ivy.jar.dir}/ivy.jar" />
 				
-		        <!-- download Ivy from web site so that it can be used even without any special installation -->
-				<mkdir dir="${ivy.jar.dir}"/>
-				<sequential unless:set="am-offline">
-					<echo message=" - downloading ivy" />
-					<get src="http://repo2.maven.org/maven2/org/apache/ivy/ivy/@{ivyversion}/ivy-@{ivyversion}.jar" 
-			             dest="${ivy.jar.file}" 
-			        		 usetimestamp="true"
-						 skipexisting="true"
-			        	    />
-				</sequential>
-			</sequential>
-			
-			<!-- fail if no ivy jar file -->
-			<fail-not-exists 
-				arg="${ivy.jar.file}" 
-				type="file" 
-				message="missing ivy.jar and was unable to download the jar"/>
-			
-			<!-- define ivy tasks -->
-	        <path id="ivy.lib.path">
-	            <fileset dir="${ivy.jar.dir}" includes="*.jar"/>
-	        </path>
-		    <taskdef resource="org/apache/ivy/ant/antlib.xml"
-					uri="antlib:org.apache.ivy.ant" 
-		     		classpathref="ivy.lib.path"/>
-			
-			<!-- download libraries -->
-			<sequential if:set="have.buildlibsdir">
-				<fail-not-exists arg="@{buildivyfile}" 
-						type="file" 
-						message="did not find ivy build file @{buildivyfile}"/>
-				<ivy:resolve file="@{buildivyfile}" />
-				<ivy:retrieve sync="false" type="jar" pattern="@{buildlibsdir}/[artifact]-[revision].[ext]" />
-			</sequential>
-			
-			<fail-not-exists arg="@{ivyfile}" 
+				<!-- fail if no ivy jar file -->
+				<fail-not-exists 
+					arg="${ivy.jar.file}" 
 					type="file" 
-					message="did not find ivy  file @{ivyfile}"/>
-			<ivy:resolve file="@{ivyfile}"/> 
-			<ivy:retrieve sync="false" type="jar" pattern="@{libsdir}/@{namepattern}" />
+					message="missing ivy.jar"/>
 				
+				<!-- define ivy tasks -->
+		        <path id="ivy.lib.path">
+		            <fileset dir="${ivy.jar.dir}" includes="*.jar"/>
+		        </path>
+			    <taskdef resource="org/apache/ivy/ant/antlib.xml"
+						uri="antlib:org.apache.ivy.ant" 
+			     		classpathref="ivy.lib.path"/>				
+			</sequential>
+			
+			<!-- do not execute if SKIPIVY is set in environment -->
+			<sequential unless:set="have.skipivy">
+				<!-- set properties based on parameters -->
+				<condition property="have.buildlibsdir">
+					<and>
+						<not>
+							<equals arg1="@{buildlibsdir}" arg2="" trim="yes"/>
+						</not>
+						<not>
+							<equals arg1="@{buildivyfile}" arg2="" trim="yes"/>
+						</not>
+					</and>
+				</condition>
+				
+				<!-- set ivy properties -->
+				<condition property="ivy.home" value="${env.IVY_HOME}">
+					<isset property="env.IVY_HOME" />
+				</condition>
+				<property name="ivy.jar.dir" value="@{ivyjardir}" />
+				<property name="ivy.jar.file" value="${ivy.jar.dir}/ivy.jar" />
+				<condition property="ivy.writable">
+					<isfileselected file="${ivy.jar.dir}" >
+						<writable/>
+					</isfileselected>
+				</condition>
+				<condition property="have.ivy.jar">
+					<available file="${ivy.jar.file}" type="file"/>
+				</condition>
+				
+				
+				<!-- only try to download ivy if it does not exist already -->
+				<sequential unless:set="have.ivy.jar">
+					<!-- can reach maven repos -->
+					<condition property="am-offline">
+					  	<not><socket server="mvnrepository.com" port="443"/></not>
+					</condition>
+			
+					<echo if:set="am-offline" message="you are offline" />
+					
+			        <!-- download Ivy from web site so that it can be used even without any special installation -->
+					<mkdir dir="${ivy.jar.dir}"/>
+					<sequential unless:set="am-offline">
+						<echo message=" - downloading ivy" />
+						<get src="http://repo2.maven.org/maven2/org/apache/ivy/ivy/@{ivyversion}/ivy-@{ivyversion}.jar" 
+				             dest="${ivy.jar.file}" 
+				        		 usetimestamp="true"
+							 skipexisting="true"
+				        	    />
+					</sequential>
+				</sequential>
+				
+				<!-- fail if no ivy jar file -->
+				<fail-not-exists 
+					arg="${ivy.jar.file}" 
+					type="file" 
+					message="missing ivy.jar and was unable to download the jar"/>
+				
+				<!-- define ivy tasks -->
+		        <path id="ivy.lib.path">
+		            <fileset dir="${ivy.jar.dir}" includes="*.jar"/>
+		        </path>
+			    <taskdef resource="org/apache/ivy/ant/antlib.xml"
+						uri="antlib:org.apache.ivy.ant" 
+			     		classpathref="ivy.lib.path"/>
+				
+				<!-- download libraries -->
+				<sequential if:set="have.buildlibsdir">
+					<fail-not-exists arg="@{buildivyfile}" 
+							type="file" 
+							message="did not find ivy build file @{buildivyfile}"/>
+					<ivy:resolve file="@{buildivyfile}" />
+					<ivy:retrieve sync="false" type="jar" pattern="@{buildlibsdir}/[artifact]-[revision].[ext]" />
+				</sequential>
+				
+				<fail-not-exists arg="@{ivyfile}" 
+						type="file" 
+						message="did not find ivy  file @{ivyfile}"/>
+				<ivy:resolve file="@{ivyfile}"/> 
+				<ivy:retrieve sync="false" type="jar" pattern="@{libsdir}/@{namepattern}" />
+			</sequential>		
 	   </sequential>
 	</macrodef>
 	
