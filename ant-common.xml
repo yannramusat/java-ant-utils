@@ -7,6 +7,44 @@
 	xmlns:if="ant:if"
     xmlns:unless="ant:unless"
 >	
+	<!-- fail if ant version too old -->
+	<macrodef name="check-ant-version"
+		description="check that ant is new enough">
+		
+		<attribute name="required-version" default=""/>
+		<attribute name="message" default="" />
+		
+		<sequential>
+			<local name="macros.required.version" />
+			<local name="provided.version" />
+			
+			<property name="macros.required.version" value="1.9.1" />
+			
+		    <antversion property="ant.version.running" />
+			
+		    <fail message="FATAL ERROR:  The running Ant version, ${ant.version.running}, is too old to support features used in ant-common.xml macros.">
+		        <condition>
+		            <not>
+		                <antversion atleast="${macros.required.version}" />
+		            </not>
+		        </condition>
+		    </fail>			
+			
+			<set-prop-if-not-empty arg="@{required-version}" propname="provided.version" />
+			
+			<sequential if:set="provided.version">
+			    <fail message="FATAL ERROR:  The running Ant version, ${ant.version.running}, need @{required-version} to build. @{message}">
+			        <condition>
+			            <not>
+			                <antversion atleast="@{required-version}" />
+			            </not>
+			        </condition>
+			    </fail>
+			</sequential>
+			<echo message="ANT VERSION: ${ant.version.running}" />
+		</sequential>
+	</macrodef>
+	
 	<!-- fails if value is empty -->
 	<macrodef name="fail-if-empty"
 		description="fail if argument is empty">
@@ -947,6 +985,7 @@
 
 	<!-- create build directories and setup basic properties -->
 	<target name="mkdirs-and-setup-props">
+		<check-ant-version />
 		<set-default-props />
 		
 		<property name="jar.bin" value="${dir.build}/${artifactId}.jar" />
