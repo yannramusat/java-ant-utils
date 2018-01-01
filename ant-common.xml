@@ -130,6 +130,25 @@
 		</sequential>
 	</macrodef>
 	
+	<!-- print a path -->
+	<macrodef name="print-path"
+			description="print the contents of a path">
+		<attribute name="pathid" default="" />
+		
+		<sequential>
+			<fail-if-empty arg="@{pathid}" />
+		
+			<local name="additional.resources" />
+			
+		    <!-- Format path -->
+		    <pathconvert pathsep="${line.separator}   - "
+		    		property="additional.resources">
+					<path refid="@{pathid}" />
+		    </pathconvert>
+			<echo message="path elements:${line.separator}   - ${additional.resources}${line.separator}" />	
+		</sequential>
+	</macrodef>
+	
 	<!-- define task -->
 	<macrodef name="define-task" 
 		description="load an ant task">
@@ -452,7 +471,8 @@
 		<attribute name="pathname" default="${classpath.name.bin}" />
 		<attribute name="pathnamejar" default="${classpath.name.bin}.jar"/>
 		<attribute name="jarcplibdir" default="lib" />
-
+		<element name="path-elements" optional="yes" />
+		
 		<sequential>
 			<echo message="**********************************************************"/>
 			<echo message="*  SETUP CLASS PATH @{pathname} for @{dir}"/>
@@ -461,7 +481,8 @@
 			<fail-not-exists arg="@{dir}"/>
 			
 			<path id="@{pathname}">
-				<fileset dir="@{dir}"/>
+				<fileset dir="@{dir}" includes="*.jar"/>
+				<path-elements />
 			</path>
 	
 			<pathconvert property="@{pathnamejar}" pathsep="    ">
@@ -784,6 +805,7 @@
 		<attribute name="jarcreator" default="${jar.creator}" />
 		<attribute name="adddirs" default="" />
 		<attribute name="mainclass" default="${mainclass}" />
+		<element name="additional-resources" optional="true" />
 		
 		<sequential>
 			<echo message="**********************************************************"/>
@@ -799,16 +821,18 @@
 			<set-prop-if-not-empty arg="@{addirs}" propname="have.include.resources"/>
 			
 			<sequential unless:set="have.include.resources">
-				<jar destfile="@{jar}" basedir="@{bindir}" update="true">
+				<jar destfile="@{jar}">
 					<manifest>
 						<attribute name="Main-Class" value="@{mainclass}" />
 						<attribute name="Created-By" value="@{jarcreator}" />
 						<attribute name="Class-Path" value="@{classpath}" />
 					</manifest>
+					<fileset dir="@{bindir}" />
+					<additional-resources />
 				</jar>
 			</sequential>
 			<sequential if:set="have.include.resources">
-				<jar destfile="@{jar}"  update="true">
+				<jar destfile="@{jar}">
 					<manifest>
 						<attribute name="Main-Class" value="@{mainclass}" />
 						<attribute name="Created-By" value="@{jarcreator}" />
@@ -816,6 +840,7 @@
 					</manifest>
 					<multirootfileset basedirs="@{adddirs}" />
 					<fileset dir="@{bindir}" />
+					<additional-resources />
 				</jar>
 			</sequential>
 		</sequential>
