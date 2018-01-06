@@ -45,6 +45,33 @@
 		</sequential>
 	</macrodef>
 	
+	<!-- set property if file contains string -->
+	<macrodef name="file-contains-string"
+			description="sets a property if file contains a search string">
+		
+		<attribute name="file" />
+		<attribute name="substring" />
+		<attribute name="propname" />
+		<attribute name="casesensitive" default="yes" />
+		
+		<sequential>
+			<fail-if-empty arg="@{file}" />
+			<fail-if-empty arg="@{pattern}" />
+			<fail-if-empty arg="@{propname}" />
+			
+			<condition property="@{propname}">
+				<resourcecontains 
+					resource="@{file}" 
+					substring="@{substring}"
+					casesensitive="@{casesensitive}" />
+			</condition>
+			<fileset id="contains.pattern" dir="${log.dir}" includes="*.log">
+			    <contains text="${fail.string}"/>
+			</fileset>
+			
+		</sequential>
+	</macrodef>
+	
 	<!-- fails if value is empty -->
 	<macrodef name="fail-if-empty"
 		description="fail if argument is empty">
@@ -83,6 +110,38 @@
 					</not>
 				</condition>
 			</fail>
+		</sequential>
+	</macrodef>
+	
+	<!-- fails if dir does not exist -->
+	<macrodef name="set-prop-if-exists"
+		description="set a property if dir (default) or file does not exist">
+		
+		<attribute name="file"/>
+		<attribute name="message" default="" />
+		<attribute name="failmessage" default="" />
+		<attribute name="trim" default="yes" />
+		<attribute name="type" default="dir" />
+		<attribute name="propname" />
+		
+		<sequential>
+			<local name="have.message" />
+			<local name="have.failmessage" />
+			
+			<set-prop-if-not-empty arg="@{message}" propname="have.message"/>
+			<set-prop-if-not-empty arg="@{failmessage}" propname="have.failmessage"/>
+			
+			<condition property="@{propname}">
+				<available file="@{file}" type="@{type}"/>
+			</condition>
+			
+			<sequential if:set="@{propname}">
+				<echo if:set="have.message" message="@{message}" />
+			</sequential>
+			
+			<sequential unless:set="@{propname}">
+				<echo if:set="have.failmessage" message="@{failmessage}" />
+			</sequential>
 		</sequential>
 	</macrodef>
 	
