@@ -575,7 +575,7 @@
 			<echo message="*  CREATE JAVADOC FOR @{srcdir} IN @{destdir}"/>
 			<echo message="**********************************************************"/>
 			
-			<fail-not-exists arg="${srcdir}" />
+			<fail-not-exists arg="@{srcdir}" />
 			
 			<javadoc access="private" 
 				author="true" 
