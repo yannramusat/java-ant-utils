@@ -399,7 +399,6 @@
 		<attribute name="buildlibsdir" default="${dir.buildlib}"/>
 		<attribute name="namepattern" default="[organisation].[module].[artifact]-[revision](-[classifier]).[ext]"/>
 		<attribute name="ivyversion" default="2.5.0"/>
-
 		<sequential>
 			<local name="have.buildlibsdir" />
 			<local name="have.ivy.jar" />
@@ -1243,5 +1242,4 @@
 			description="generate jars and pom.xml and deploy them to maven central via OSSRH">
 		<deploy-to-maven-central release="yes"/>
 	</target>
-
 </project>
