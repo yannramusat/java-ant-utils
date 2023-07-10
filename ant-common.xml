@@ -399,6 +399,7 @@
 		<attribute name="buildlibsdir" default="${dir.buildlib}"/>
 		<attribute name="namepattern" default="[organisation].[module].[artifact]-[revision](-[classifier]).[ext]"/>
 		<attribute name="ivyversion" default="2.5.0"/>
+
 		<sequential>
 			<local name="have.buildlibsdir" />
 			<local name="have.ivy.jar" />
